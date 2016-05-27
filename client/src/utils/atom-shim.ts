@@ -1,4 +1,4 @@
-import {TextDocument, Uri, TextLine, Range, Position} from './vscode-shim';
+import {TextDocument, Uri, TextLine, Range, Position, TextDocumentChangeEvent, TextDocumentContentChangeEvent} from './vscode-shim';
 import TextBuffer from 'text-buffer';
 
 
@@ -273,4 +273,11 @@ export class AtomTextDocument implements TextDocument {
 		cursor.destroy();
 		return range;
 	}
+}
+
+export function convertChangeEvent(document: TextDocument, change: { oldRange: TextBuffer.Range; newRange: TextBuffer.Range; oldText: string; newText: string; }): TextDocumentChangeEvent {
+	const range = convertToRange(change.oldRange);
+	const rangeLength = change.oldText.length;
+	const text = change.newText;
+	return { document, contentChanges: [{ range, rangeLength, text }] };
 }

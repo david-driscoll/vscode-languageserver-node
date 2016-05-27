@@ -7,8 +7,8 @@
 import * as cp from 'child_process';
 import ChildProcess = cp.ChildProcess;
 
-import {Disposable, TextDocument, CancellationToken, DiagnosticCollection, OutputChannel, DocumentFilter, DocumentSelector} from './utils/vscode-shim';
-import {createTextDocument} from './utils/atom-shim';
+import {Disposable, TextDocument, CancellationToken, DiagnosticCollection, OutputChannel, DocumentFilter, DocumentSelector, TextDocumentChangeEvent} from './utils/vscode-shim';
+import {createTextDocument, convertChangeEvent} from './utils/atom-shim';
 
 import {
 	RequestHandler, NotificationHandler, MessageConnection, ClientMessageConnection, Logger, createClientMessageConnection,
@@ -500,7 +500,12 @@ export class LanguageClient {
 							this.onDidOpenTextDoument(connection, doc);
 
 							const disposable = Disposable.from(...[
-								t.onDidChange(() => this.onDidChangeTextDocument(connection, doc)),
+								t.onDidChange((change: {
+									oldRange: TextBuffer.Range;
+									 newRange: TextBuffer.Range;
+									  oldText: string;
+									   newText: string;
+									 }) => this.onDidChangeTextDocument(connection, convertChangeEvent(doc, change))),
 								t.onDidDestroy(() => {
 									this.onDidCloseTextDoument(connection, doc);
 									disposable.dispose();
