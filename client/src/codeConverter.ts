@@ -4,7 +4,8 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
-import * as code from 'vscode';
+import * as code from './utils/vscode-shim';
+
 import * as proto from './protocol';
 import * as is from './utils/is';
 import ProtocolCompletionItem from './protocolCompletionItem';

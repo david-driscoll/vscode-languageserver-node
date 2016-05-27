@@ -7,14 +7,7 @@
 import * as cp from 'child_process';
 import ChildProcess = cp.ChildProcess;
 
-import {
-		workspace as Workspace, window as Window, languages as Languages, extensions as Extensions, TextDocumentChangeEvent, TextDocument, Disposable, OutputChannel,
-		FileSystemWatcher, Uri, DiagnosticCollection, DocumentSelector,
-		CancellationToken, Hover as VHover, Position as VPosition, Location as VLocation, Range as VRange,
-		CompletionItem as VCompletionItem, CompletionList as VCompletionList, SignatureHelp as VSignatureHelp, Definition as VDefinition, DocumentHighlight as VDocumentHighlight,
-		SymbolInformation as VSymbolInformation, CodeActionContext as VCodeActionContext, Command as VCommand, CodeLens as VCodeLens,
-		FormattingOptions as VFormattingOptions, TextEdit as VTextEdit, WorkspaceEdit as VWorkspaceEdit, MessageItem
-} from 'vscode';
+import {Disposable, TextDocument, CancellationToken, DiagnosticCollection, OutputChannel} from './utils/vscode-shim';
 
 import {
 		RequestHandler, NotificationHandler, MessageConnection, ClientMessageConnection, Logger, createClientMessageConnection,

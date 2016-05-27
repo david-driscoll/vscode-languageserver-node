@@ -4,7 +4,7 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
-import * as code from 'vscode';
+import * as code from './utils/vscode-shim';
 
 export default class ProtocolCodeLens extends code.CodeLens {
 
