@@ -7,36 +7,37 @@
 import * as cp from 'child_process';
 import ChildProcess = cp.ChildProcess;
 
-import {Disposable, TextDocument, CancellationToken, DiagnosticCollection, OutputChannel} from './utils/vscode-shim';
+import {Disposable, TextDocument, CancellationToken, DiagnosticCollection, OutputChannel, DocumentFilter, DocumentSelector} from './utils/vscode-shim';
+import {createTextDocument} from './utils/atom-shim';
 
 import {
-		RequestHandler, NotificationHandler, MessageConnection, ClientMessageConnection, Logger, createClientMessageConnection,
-		ErrorCodes, ResponseError, RequestType, NotificationType,
-		MessageReader, IPCMessageReader, MessageWriter, IPCMessageWriter, Trace, Tracer, Event, Emitter
+	RequestHandler, NotificationHandler, MessageConnection, ClientMessageConnection, Logger, createClientMessageConnection,
+	ErrorCodes, ResponseError, RequestType, NotificationType,
+	MessageReader, IPCMessageReader, MessageWriter, IPCMessageWriter, Trace, Tracer, Event, Emitter
 } from 'vscode-jsonrpc';
 import {
-		InitializeRequest, InitializeParams, InitializeResult, InitializeError, ClientCapabilities, ServerCapabilities, TextDocumentSyncKind,
-		ShutdownRequest,
-		ExitNotification,
-		LogMessageNotification, LogMessageParams, MessageType,
-		ShowMessageNotification, ShowMessageParams, ShowMessageRequest, ShowMessageRequestParams,
-		TelemetryEventNotification,
-		DidChangeConfigurationNotification, DidChangeConfigurationParams,
-		Position, Range, Location,
-		TextDocumentIdentifier, TextDocumentPositionParams, TextEdit, TextEditChange, WorkspaceChange,
-		DidOpenTextDocumentNotification, DidOpenTextDocumentParams, DidChangeTextDocumentNotification, DidChangeTextDocumentParams,
-		DidCloseTextDocumentNotification, DidCloseTextDocumentParams, DidSaveTextDocumentNotification, DidSaveTextDocumentParams,
-		DidChangeWatchedFilesNotification, DidChangeWatchedFilesParams, FileEvent, FileChangeType,
-		PublishDiagnosticsNotification, PublishDiagnosticsParams, Diagnostic, DiagnosticSeverity,
-		CompletionRequest, CompletionResolveRequest, CompletionItem,
-		HoverRequest, Hover,
-		SignatureHelpRequest, DefinitionRequest, Definition, ReferencesRequest, DocumentHighlightRequest, DocumentHighlight,
-		DocumentSymbolRequest, SymbolInformation, SymbolKind, WorkspaceSymbolRequest, WorkspaceSymbolParams,
-		CodeActionRequest, CodeActionParams,
-		CodeLensRequest, CodeLensResolveRequest, CodeLens,
-		DocumentFormattingRequest, DocumentFormattingParams, FormattingOptions, DocumentRangeFormattingRequest, DocumentRangeFormattingParams,
-		DocumentOnTypeFormattingRequest, DocumentOnTypeFormattingParams,
-		RenameRequest, RenameParams
+	InitializeRequest, InitializeParams, InitializeResult, InitializeError, ClientCapabilities, ServerCapabilities, TextDocumentSyncKind,
+	ShutdownRequest,
+	ExitNotification,
+	LogMessageNotification, LogMessageParams, MessageType,
+	ShowMessageNotification, ShowMessageParams, ShowMessageRequest, ShowMessageRequestParams,
+	TelemetryEventNotification,
+	DidChangeConfigurationNotification, DidChangeConfigurationParams,
+	Position, Range, Location,
+	TextDocumentIdentifier, TextDocumentPositionParams, TextEdit, TextEditChange, WorkspaceChange,
+	DidOpenTextDocumentNotification, DidOpenTextDocumentParams, DidChangeTextDocumentNotification, DidChangeTextDocumentParams,
+	DidCloseTextDocumentNotification, DidCloseTextDocumentParams, DidSaveTextDocumentNotification, DidSaveTextDocumentParams,
+	DidChangeWatchedFilesNotification, DidChangeWatchedFilesParams, FileEvent, FileChangeType,
+	PublishDiagnosticsNotification, PublishDiagnosticsParams, Diagnostic, DiagnosticSeverity,
+	CompletionRequest, CompletionResolveRequest, CompletionItem,
+	HoverRequest, Hover,
+	SignatureHelpRequest, DefinitionRequest, Definition, ReferencesRequest, DocumentHighlightRequest, DocumentHighlight,
+	DocumentSymbolRequest, SymbolInformation, SymbolKind, WorkspaceSymbolRequest, WorkspaceSymbolParams,
+	CodeActionRequest, CodeActionParams,
+	CodeLensRequest, CodeLensResolveRequest, CodeLens,
+	DocumentFormattingRequest, DocumentFormattingParams, FormattingOptions, DocumentRangeFormattingRequest, DocumentRangeFormattingParams,
+	DocumentOnTypeFormattingRequest, DocumentOnTypeFormattingParams,
+	RenameRequest, RenameParams
 } from './protocol';
 
 import * as c2p from './codeConverter';
@@ -48,10 +49,10 @@ import { terminate } from './utils/processes';
 import { Delayer } from './utils/async'
 
 export {
-	RequestType, NotificationType, NotificationHandler,
-	Position, Range, Location, TextDocumentIdentifier, TextDocumentPositionParams,
-	TextEdit, TextEditChange, WorkspaceChange,
-	c2p as Code2Protocol, p2c as Protocol2Code
+RequestType, NotificationType, NotificationHandler,
+Position, Range, Location, TextDocumentIdentifier, TextDocumentPositionParams,
+TextEdit, TextEditChange, WorkspaceChange,
+c2p as Code2Protocol, p2c as Protocol2Code
 }
 
 declare var v8debug;
@@ -129,7 +130,7 @@ function createConnection(input: any, output: any): IConnection {
 		didChangeWatchedFiles: (params: DidChangeWatchedFilesParams) => connection.sendNotification(DidChangeWatchedFilesNotification.type, params),
 
 		didOpenTextDocument: (params: DidOpenTextDocumentParams) => connection.sendNotification(DidOpenTextDocumentNotification.type, params),
-		didChangeTextDocument: (params: DidChangeTextDocumentParams  | DidChangeTextDocumentParams[]) => connection.sendNotification(DidChangeTextDocumentNotification.type, params),
+		didChangeTextDocument: (params: DidChangeTextDocumentParams | DidChangeTextDocumentParams[]) => connection.sendNotification(DidChangeTextDocumentNotification.type, params),
 		didCloseTextDocument: (params: DidCloseTextDocumentParams) => connection.sendNotification(DidCloseTextDocumentNotification.type, params),
 		didSaveTextDocument: (params: DidSaveTextDocumentParams) => connection.sendNotification(DidSaveTextDocumentNotification.type, params),
 		onDiagnostics: (handler: NotificationHandler<PublishDiagnosticsParams>) => connection.onNotification(PublishDiagnosticsNotification.type, handler),
@@ -178,7 +179,7 @@ export interface NodeModule {
 	options?: ForkOptions;
 }
 
-export type ServerOptions = Executable | { run: Executable; debug: Executable; } |  { run: NodeModule; debug: NodeModule } | NodeModule | (() => Thenable<ChildProcess | StreamInfo>);
+export type ServerOptions = Executable | { run: Executable; debug: Executable; } | { run: NodeModule; debug: NodeModule } | NodeModule | (() => Thenable<ChildProcess | StreamInfo>);
 
 export interface SynchronizeOptions {
 	configurationSection?: string | string[];
@@ -417,7 +418,7 @@ export class LanguageClient {
 		this._state = ClientState.Starting;
 		this.resolveConnection().then((connection) => {
 			connection.onLogMessage((message) => {
-				switch(message.type) {
+				switch (message.type) {
 					case MessageType.Error:
 						console.error(message.message);
 						break;
@@ -432,35 +433,34 @@ export class LanguageClient {
 				}
 			});
 			connection.onShowMessage((message) => {
-				switch(message.type) {
+				switch (message.type) {
 					case MessageType.Error:
-						Window.showErrorMessage(message.message);
+						atom.notifications.addError(message.message);
 						break;
 					case MessageType.Warning:
-						Window.showWarningMessage(message.message);
+						atom.notifications.addWarning(message.message);
 						break;
 					case MessageType.Info:
-						Window.showInformationMessage(message.message);
-						break;
 					default:
-						Window.showInformationMessage(message.message);
+						atom.notifications.addInfo(message.message);
+						break;
 				}
 			});
 			connection.onRequest(ShowMessageRequest.type, (params) => {
 				let messageFunc: <T extends MessageItem>(message: string, ...items: T[]) => Thenable<T> = null;
-				switch(params.type) {
+				switch (params.type) {
 					case MessageType.Error:
-						messageFunc = Window.showErrorMessage;
+						messageFunc = atom.notifications.addError.bind(atom.notifications);
 						break;
 					case MessageType.Warning:
-						messageFunc = Window.showWarningMessage;
+						messageFunc = atom.notifications.addWarning.bind(atom.notifications);
 						break;
 					case MessageType.Info:
-						messageFunc = Window.showInformationMessage;
-						break;
 					default:
-						messageFunc = Window.showInformationMessage;
+						messageFunc = atom.notifications.addInfo.bind(atom.notifications)
+						break;
 				}
+				// TODO: Move to atom buttons
 				return messageFunc(params.message, ...params.actions);
 			});
 			connection.onTelemetry((data) => {
@@ -470,7 +470,7 @@ export class LanguageClient {
 			this.initialize(connection);
 		}, (error) => {
 			this._onReadyCallbacks.reject();
-			Window.showErrorMessage(`Couldn't start client ${this._name}`);
+			atom.notifications.addError(`Couldn't start client ${this._name}`);
 		});
 		return new Disposable(() => {
 			if (this.needsStop()) {
@@ -487,16 +487,32 @@ export class LanguageClient {
 	}
 
 	private initialize(connection: IConnection): Thenable<InitializeResult> {
-		let initParams: InitializeParams = { processId: process.pid, rootPath: Workspace.rootPath, capabilities: { }, initializationOptions: this._languageOptions.initializationOptions };
+		let initParams: InitializeParams = { processId: process.pid, rootPath: atom.getConfigDirPath(), capabilities: {}, initializationOptions: this._languageOptions.initializationOptions };
 		return connection.initialize(initParams).then((result) => {
 			this._state = ClientState.Running;
 			this._capabilites = result.capabilities;
 			connection.onDiagnostics(params => this.handleDiagnostics(params));
 			if (this._capabilites.textDocumentSync !== TextDocumentSyncKind.None) {
-				Workspace.onDidOpenTextDocument(t => this.onDidOpenTextDoument(connection, t), null, this._listeners);
-				Workspace.onDidChangeTextDocument(t => this.onDidChangeTextDocument(connection, t), null, this._listeners);
-				Workspace.onDidCloseTextDocument(t => this.onDidCloseTextDoument(connection, t), null, this._listeners);
-				Workspace.onDidSaveTextDocument(t => this.onDidSaveTextDocument(connection, t), null, this._listeners);
+				this._listeners.push(
+					Disposable.from(...[
+						atom.workspace.observeTextEditors(t => {
+							const doc = createTextDocument(t);
+							this.onDidOpenTextDoument(connection, doc);
+
+							const disposable = Disposable.from(...[
+								t.onDidChange(() => this.onDidChangeTextDocument(connection, doc)),
+								t.onDidDestroy(() => {
+									this.onDidCloseTextDoument(connection, doc);
+									disposable.dispose();
+								}),
+								t.onDidSave(() => this.onDidSaveTextDocument(connection, doc))
+							]);
+
+							this._listeners.push(disposable);
+						}),
+
+					])
+				)
 				if (this._capabilites.textDocumentSync === TextDocumentSyncKind.Full) {
 					this._documentSyncDelayer = new Delayer<void>(100);
 				}
@@ -505,18 +521,19 @@ export class LanguageClient {
 			this.hookConfigurationChanged(connection);
 			this.hookCapabilities(connection);
 			this._onReadyCallbacks.resolve();
-			Workspace.textDocuments.forEach(t => this.onDidOpenTextDoument(connection, t));
 			return result;
 		}, (error: ResponseError<InitializeError>) => {
 			if (error.data.retry) {
-				Window.showErrorMessage(error.message, { title: 'Retry', id: "retry"}).then(item => {
-					if (is.defined(item) && item.id === 'retry') {
+				// TODO: Add retry
+				const notification = atom.notifications.addError(error.message/*, { title: 'Retry', id: "retry" }*/);
+				notification.onDidDismiss(item => {
+					/*if (is.defined(item) && item.id === 'retry') {
 						this.initialize(connection);
-					}
+					}*/
 				});
 			} else {
 				if (error.message) {
-					Window.showErrorMessage(error.message);
+					atom.notifications.addError(error.message);
 				}
 				this.stop();
 				this._onReadyCallbacks.reject();
@@ -648,7 +665,7 @@ export class LanguageClient {
 			});
 		}
 		let json: { command?: string; module?: string } = null;
-		let runDebug= <{ run: any; debug: any;}>server;
+		let runDebug = <{ run: any; debug: any; }>server;
 		if (is.defined(runDebug.run) || is.defined(runDebug.debug)) {
 			// We are under debugging. So use debug as well.
 			if (typeof v8debug === 'object' || this._forceDebug) {
@@ -869,7 +886,7 @@ export class LanguageClient {
 
 		this._providers.push(Languages.registerCompletionItemProvider(documentSelector, {
 			provideCompletionItems: (document: TextDocument, position: VPosition, token: CancellationToken): Thenable<VCompletionList | VCompletionItem[]> => {
-				return this.doSendRequest(connection, CompletionRequest.type, c2p.asTextDocumentPositionParams(document, position), token). then(
+				return this.doSendRequest(connection, CompletionRequest.type, c2p.asTextDocumentPositionParams(document, position), token).then(
 					p2c.asCompletionResult,
 					error => Promise.resolve([])
 				);
@@ -906,7 +923,7 @@ export class LanguageClient {
 		}
 		this._providers.push(Languages.registerSignatureHelpProvider(documentSelector, {
 			provideSignatureHelp: (document: TextDocument, position: VPosition, token: CancellationToken): Thenable<VSignatureHelp> => {
-				return this.doSendRequest(connection, SignatureHelpRequest.type, c2p.asTextDocumentPositionParams(document, position), token). then(
+				return this.doSendRequest(connection, SignatureHelpRequest.type, c2p.asTextDocumentPositionParams(document, position), token).then(
 					p2c.asSignatureHelp,
 					error => Promise.resolve(null)
 				);
@@ -920,7 +937,7 @@ export class LanguageClient {
 		}
 		this._providers.push(Languages.registerDefinitionProvider(documentSelector, {
 			provideDefinition: (document: TextDocument, position: VPosition, token: CancellationToken): Thenable<VDefinition> => {
-				return this.doSendRequest(connection, DefinitionRequest.type, c2p.asTextDocumentPositionParams(document, position), token). then(
+				return this.doSendRequest(connection, DefinitionRequest.type, c2p.asTextDocumentPositionParams(document, position), token).then(
 					p2c.asDefinitionResult,
 					error => Promise.resolve(null)
 				);

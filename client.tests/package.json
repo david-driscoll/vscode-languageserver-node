@@ -6,7 +6,7 @@
 	"publisher": "Microsoft Corporation",
 	"license": "MIT",
 	"engines": {
-		"vscode": "^0.10.7"
+		"atom": "~1.0.0"
 	},
 	"repository": {
 		"type": "git",
@@ -17,8 +17,7 @@
 	},
 	"devDependencies": {
 		"mocha": "^2.4.5",
-		"typescript": "^1.8.9",
-		"vscode": "^0.11.0"
+		"typescript": "^1.8.9"
 	},
 	"scripts": {
 		"postinstall": "node ./node_modules/vscode/bin/install",
